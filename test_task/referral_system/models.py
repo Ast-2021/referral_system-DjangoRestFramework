@@ -9,7 +9,7 @@ from django.db import models
 
 def get_invite_code():
     characters = string.ascii_letters + string.digits
-    code = ''.join(random.choice(characters, k=6))
+    code = ''.join(random.choices(characters, k=6))
     return code
 
 
@@ -32,12 +32,13 @@ class CustomUserManager(BaseUserManager):
         if extra_fields.get('is_superuser') is not True:
             raise ValueError('')
         
-        return self.create_superuser(phone_number, password, **extra_fields)
+        return self.create_user(phone_number, password, **extra_fields)
 
 
 class CustomUser(AbstractBaseUser):
     phone_number = PhoneNumberField(null=False, blank=False, unique=True)
     invite_code = models.CharField(max_length=6)
+    my_refer = models.CharField(max_length=6, null=True, blank=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)
@@ -49,3 +50,9 @@ class CustomUser(AbstractBaseUser):
 
     def __str__(self):
         return str(self.phone_number)
+    
+    def has_perm(self, perm, obj=None):
+        return True
+    
+    def has_module_perms(self, app_label):
+        return True

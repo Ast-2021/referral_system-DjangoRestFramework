@@ -1,0 +1,65 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Авторизация и Регистрация</title>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('auth-form');
+            form.addEventListener('submit', function(event) {
+                event.preventDefault();
+    
+                const phone_number = document.getElementById('phone_number').value;
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    
+                console.log('Отправка данных на сервер...');
+                fetch('{% url "auth" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ phone_number: phone_number })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Ответ сервера:', data);
+                    if (data.message.includes('Вы успешно авторизовались')) {
+                        console.log('Пользователь авторизован, перенаправление на user_page/');
+                        window.location.href = '{% url "user_page" %}';
+                    } else if (data.message.includes('Вы успешно зарегистрировались и авторизовались')) {
+                        window.location.href = '{% url "user_page" %}';
+                    } else {
+                        document.getElementById('response-message').textContent = data.message;
+                    }
+                })
+                .catch(error => {
+                    console.log('Произошла ошибка:', error);
+                    document.getElementById('response-message').textContent = 'Ошибка: ' + error.message;
+                });
+            });
+        });
+    </script>    
+</head>
+<body class="auth-page">
+    <div class="auth">
+        <h1>Авторизация</h1>
+        <form id="auth-form">
+            <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+            <label for="phone_number">Телефон:</label>
+            <input type="text" id="phone_number" name="phone_number" required><br><br>
+            <button type="submit">Отправить</button>
+        </form>
+        <p id="response-message"></p>
+    </div>
+</body>
+
+</html>

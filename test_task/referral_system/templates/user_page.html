@@ -1,0 +1,44 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Страница пользователя</title>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const logoutButton = document.querySelector('.logout-button');
+            logoutButton.addEventListener('click', function(event) {
+                event.preventDefault();
+
+                fetch('{% url "logout" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Response data:', data);
+                    window.location.href = '{% url "home" %}';
+                })
+                .catch(error => {
+                    console.log('Error:', error);
+                    document.getElementById('response-message').textContent = 'Ошибка: ' + error.message;
+                });
+            });
+        });
+    </script>
+</head>
+<body>
+    <h1>Вы успешно авторизировались!</h1>
+    <button class="logout-button">Logout</button>
+    <p id="response-message"></p>
+</body>
+</html>
