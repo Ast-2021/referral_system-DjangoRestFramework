@@ -8,14 +8,23 @@
     <link rel="stylesheet" href="{% static 'css/styles.css' %}">
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const form = document.getElementById('auth-form');
-            form.addEventListener('submit', function(event) {
+            const authForm = document.getElementById('auth-form');
+            const verificationForm = document.getElementById('verification-form');
+            const phoneInput = document.getElementById('phone_number');
+            const verificationInput = document.getElementById('verification_code');
+            const responseMessage = document.getElementById('response-message');
+            const verificationLabel = document.getElementById('verification-label');
+            const loadingAnimation = document.getElementById('loading-animation');
+
+            authForm.addEventListener('submit', function(event) {
                 event.preventDefault();
-    
-                const phone_number = document.getElementById('phone_number').value;
+
+                const phone_number = phoneInput.value;
                 const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-    
-                console.log('Отправка данных на сервер...');
+
+                // Показать анимацию загрузки
+                loadingAnimation.style.display = 'block';
+
                 fetch('{% url "auth" %}', {
                     method: 'POST',
                     headers: {
@@ -31,35 +40,128 @@
                     return response.json();
                 })
                 .then(data => {
-                    console.log('Ответ сервера:', data);
-                    if (data.message.includes('Вы успешно авторизовались')) {
-                        console.log('Пользователь авторизован, перенаправление на user_page/');
-                        window.location.href = '{% url "user_page" %}';
-                    } else if (data.message.includes('Вы успешно зарегистрировались и авторизовались')) {
-                        window.location.href = '{% url "user_page" %}';
-                    } else {
-                        document.getElementById('response-message').textContent = data.message;
+                    if (data.code_sent) {
+                        setTimeout(() => {  // Добавляем задержку 2 секунды
+                            authForm.style.display = 'none';
+                            verificationForm.style.display = 'block';
+                            verificationLabel.textContent = `Код подтверждения (Ваш код: ${data.verification_code}):`;
+                            loadingAnimation.style.display = 'none';  // Скрыть анимацию загрузки
+                        }, 3000);
                     }
+                    responseMessage.textContent = data.message;
                 })
                 .catch(error => {
-                    console.log('Произошла ошибка:', error);
-                    document.getElementById('response-message').textContent = 'Ошибка: ' + error.message;
+                    responseMessage.textContent = 'Ошибка: ' + error.message;
+                    loadingAnimation.style.display = 'none';  // Скрыть анимацию загрузки при ошибке
+                });
+            });
+
+            verificationForm.addEventListener('submit', function(event) {
+                event.preventDefault();
+
+                const verification_code = verificationInput.value;
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+                // Показать анимацию загрузки
+                loadingAnimation.style.display = 'block';
+
+                fetch('{% url "auth" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ verification_code: verification_code })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.authorized) {
+                        window.location.href = '{% url "user_page" %}';
+                    }
+                    responseMessage.textContent = data.message;
+                    loadingAnimation.style.display = 'none';  // Скрыть анимацию загрузки
+                })
+                .catch(error => {
+                    responseMessage.textContent = 'Ошибка: ' + error.message;
+                    loadingAnimation.style.display = 'none';  // Скрыть анимацию загрузки при ошибке
                 });
             });
         });
-    </script>    
+    </script>
+    <style>
+        /* Простая анимация загрузки */
+        #loading-animation {
+            display: none;
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Стиль для класса body */
+        body.auth-body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .auth {
+            text-align: center;
+            margin: 0 auto;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .auth h1 {
+            margin-bottom: 20px;
+        }
+
+        .auth form {
+            margin-bottom: 20px;
+        }
+
+        .auth form input,
+        .auth form button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+    </style>
 </head>
-<body class="auth-page">
+<body class="auth-body">
     <div class="auth">
         <h1>Авторизация</h1>
         <form id="auth-form">
             <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
-            <label for="phone_number">Телефон:</label>
+            <label for="phone_number">Телефон (+7):</label>
             <input type="text" id="phone_number" name="phone_number" required><br><br>
             <button type="submit">Отправить</button>
         </form>
+
+        <form id="verification-form" style="display: none;">
+            <label id="verification-label" for="verification_code">Код подтверждения:</label>
+            <input type="text" id="verification_code" name="verification_code" required><br><br>
+            <button type="submit">Проверить</button>
+        </form>
+
         <p id="response-message"></p>
+        <div id="loading-animation"></div>
     </div>
 </body>
-
 </html>

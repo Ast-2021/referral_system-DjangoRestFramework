@@ -1,44 +1,165 @@
-{% load static %}
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Страница пользователя</title>
-    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const logoutButton = document.querySelector('.logout-button');
-            logoutButton.addEventListener('click', function(event) {
-                event.preventDefault();
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
 
-                fetch('{% url "logout" %}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('Response data:', data);
-                    window.location.href = '{% url "home" %}';
-                })
-                .catch(error => {
-                    console.log('Error:', error);
-                    document.getElementById('response-message').textContent = 'Ошибка: ' + error.message;
-                });
-            });
-        });
-    </script>
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1, h2 {
+            color: #333;
+        }
+
+        #user-info p {
+            font-size: 16px;
+            margin: 10px 0;
+        }
+
+        #referrals-list {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        #referrals-list li {
+            background-color: #e0e0e0;
+            margin: 5px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .home-button, .update-button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-align: center;
+            display: block;
+            width: 100%;
+        }
+
+        .home-button:hover, .update-button:hover {
+            background-color: #0056b3;
+        }
+
+        .update-form {
+            margin-top: 20px;
+        }
+
+        .update-form label {
+            display: block;
+            margin: 10px 0 5px;
+        }
+
+        .update-form input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+    </style>
 </head>
 <body>
-    <h1>Вы успешно авторизировались!</h1>
-    <button class="logout-button">Logout</button>
-    <p id="response-message"></p>
+    <div class="container">
+        <h1>Информация о пользователе</h1>
+        <div id="user-info">
+            <p><strong>Телефон:</strong> <span id="phone-number"></span></p>
+            <p><strong>Код приглашения:</strong> <span id="invite-code"></span></p>
+            <p id="my-refer-container"><strong>Мой рефер:</strong> <span id="my-refer"></span></p>
+            <h2>Рефералы:</h2>
+            <ul id="referrals-list"></ul>
+        </div>
+        <div class="update-form" id="update-form">
+            <label for="my-refer">Добавить рефер</label>
+            <input type="text" id="new-my-refer" placeholder="Введите новый рефер">
+            <button class="update-button" onclick="addMyRefer()">Добавить</button>
+        </div>
+        <button class="home-button" onclick="window.location.href='/'">На главную</button>
+
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            fetch('/api-users/', {
+                method: 'GET',
+                credentials: 'include'
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                document.getElementById('phone-number').textContent = data.phone_number;
+                document.getElementById('invite-code').textContent = data.invite_code;
+
+                if (data.my_refer) {
+                    document.getElementById('my-refer').textContent = data.my_refer;
+                    document.getElementById('update-form').style.display = 'none';
+                } else {
+                    document.getElementById('my-refer-container').style.display = 'none';
+                }
+
+                const referralsList = document.getElementById('referrals-list');
+                data.referrals.forEach(referral => {
+                    const listItem = document.createElement('li');
+                    listItem.textContent = `Телефон: ${referral.phone_number}, Код приглашения: ${referral.invite_code}, Мой рефер: ${referral.my_refer}`;
+                    referralsList.appendChild(listItem);
+                });
+            })
+            .catch(error => {
+                console.error('Ошибка:', error);
+            });
+        });
+
+        function addMyRefer() {
+            const newMyRefer = document.getElementById('new-my-refer').value;
+            fetch('/api-update-user/', {
+                method: 'PUT',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ my_refer: newMyRefer })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(error => {
+                        alert(`Ошибка: ${error.error}`);
+                        throw new Error('Network response was not ok');
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                document.getElementById('my-refer').textContent = data.my_refer;
+                document.getElementById('my-refer-container').style.display = 'block';
+                document.getElementById('update-form').style.display = 'none';
+                alert('Рефер успешно добавлен!');
+            })
+            .catch(error => {
+                console.error('Ошибка:', error);
+            });
+        }
+    </script>
 </body>
 </html>
